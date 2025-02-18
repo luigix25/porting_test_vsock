@@ -2,10 +2,10 @@
 #include <linux/vm_sockets.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <signal.h>
 
-int main()
-{
-	int s = socket(AF_VSOCK, SOCK_STREAM, 0);
+void start_server(int s){
 
 	struct sockaddr_vm addr;
 
@@ -17,19 +17,41 @@ int main()
 	int c = bind(s, (struct sockaddr *)&addr, sizeof(addr));
 	if(c == -1){
 		perror("bind");
-		return -1;
+		return;
 	}
 
-	listen(s, 0);
+	c = listen(s, 0);
+	if(c == -1){
+		perror("listen");
+		return;
+	}
+
+}
+
+
+int main()
+{
+	int s = socket(AF_VSOCK, SOCK_STREAM, 0);
+
+	start_server(s);
 
 	struct sockaddr_vm peer_addr;
 	socklen_t peer_addr_size = sizeof(struct sockaddr_vm);
 	int peer_fd = accept(s, (struct sockaddr *)&peer_addr, &peer_addr_size);
 
-	char buf[64];
-	size_t msg_len;
-	while ((msg_len = recv(peer_fd, &buf, 64, 0)) > 0) {
-		printf("Received %lu bytes: %.*s\n", msg_len, msg_len, buf);
+	pid_t pid_altro;
+
+	recv(peer_fd, &pid_altro, sizeof(pid_t), 0);
+
+	close(peer_fd);
+	close(s);
+	printf("pid client: %d\n",pid_altro);
+
+	while(1){
+		int s = socket(AF_VSOCK, SOCK_SEQPACKET, 0);
+		start_server(s);
+		kill(pid_altro, SIGUSR1);
+		close(s);
 	}
 
 	return 0;
