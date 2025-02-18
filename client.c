@@ -6,7 +6,6 @@
 #include <signal.h>
 
 void prova(int signal){
-	printf("segnale %d\n",signal);
 }
 
 int main()
